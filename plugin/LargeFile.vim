@@ -65,11 +65,9 @@ fun! s:LargeFile(force,fname)
     setlocal noswf bh=unload fdm=manual nofen cpt-=wbuU nobk nowb
    endif
    augroup LargeFileAU
-    if v:version < 704 || (v:version == 704 && !has("patch073"))
-     au LargeFile BufEnter  <buffer> call s:LargeFileEnter()
-     au LargeFile BufLeave  <buffer> call s:LargeFileLeave()
-	endif
-    au LargeFile BufUnload <buffer> augroup LargeFileAU|au! * <buffer>|augroup END
+    au LargeFile BufEnter  <buffer> call s:LargeFileEnter()
+    au LargeFile BufLeave  <buffer> call s:LargeFileLeave()
+    au LargeFile BufUnload <buffer> augroup LargeFileAU|au! BufEnter,BufLeave <buffer>|augroup END
    augroup END
    let b:LargeFile_mode = 1
 "   call Decho("turning  b:LargeFile_mode to ".b:LargeFile_mode)
@@ -126,7 +124,7 @@ fun! s:Unlarge()
   syn on
   doau FileType
   augroup LargeFileAU
-   au! * <buffer>
+   au! BufEnter,BufLeave  <buffer>
   augroup END
   call s:LargeFileLeave()
   echomsg "***note*** stopped large-file handling"
@@ -137,21 +135,23 @@ endfun
 " s:LargeFileEnter: {{{2
 fun! s:LargeFileEnter()
 "  call Dfunc("s:LargeFileEnter() buf#".bufnr("%")."<".bufname("%").">")
-  if has("persistent_undo")
-"   call Decho("(s:LargeFileEnter) handling persistent undo: write undo history")
-   " Write all undo history:
-   "   Turn off all events/autocmds.
-   "   Split the buffer so bufdo will always work (ie. won't abandon the current buffer)
-   "   Use bufdo
-   "   Restorre
-   let eikeep= &ei
-   set ei=all
-   1split
-   bufdo exe "wundo! ".fnameescape(undofile(bufname("%")))
-   q!
-   let &ei= eikeep
+  if v:version < 704 || (v:version == 704 && !has("patch073"))
+    if has("persistent_undo")
+"     call Decho("(s:LargeFileEnter) handling persistent undo: write undo history")
+     " Write all undo history:
+     "   Turn off all events/autocmds.
+     "   Split the buffer so bufdo will always work (ie. won't abandon the current buffer)
+     "   Use bufdo
+     "   Restorre
+     let eikeep= &ei
+     set ei=all
+     1split
+     bufdo exe "wundo! ".fnameescape(undofile(bufname("%")))
+     q!
+     let &ei= eikeep
+    endif
+    set ul=-1
   endif
-  set ul=-1
 "  call Dret("s:LargeFileEnter")
 endfun
 
@@ -162,19 +162,21 @@ endfun
 fun! s:LargeFileLeave()
 "  call Dfunc("s:LargeFileLeave() buf#".bufnr("%")."<".bufname("%").">")
   " restore undo trees
-  if has("persistent_undo")
-"   call Decho("(s:LargeFileLeave) handling persistent undo: restoring undo history")
-   " Read all undo history:
-   "   Turn off all events/autocmds.
-   "   Split the buffer so bufdo will always work (ie. won't abandon the current buffer)
-   "   Use bufdo
-   "   Restore
-   let eikeep= &ei
-   set ei=all
-   1split
-   bufdo exe "sil! rundo ".fnameescape(undofile(bufname("%")))|call delete(undofile(bufname("%")))
-   q!
-   let &ei= eikeep
+  if v:version < 704 || (v:version == 704 && !has("patch073"))
+    if has("persistent_undo")
+"     call Decho("(s:LargeFileLeave) handling persistent undo: restoring undo history")
+     " Read all undo history:
+     "   Turn off all events/autocmds.
+     "   Split the buffer so bufdo will always work (ie. won't abandon the current buffer)
+     "   Use bufdo
+     "   Restore
+     let eikeep= &ei
+     set ei=all
+     1split
+     bufdo exe "sil! rundo ".fnameescape(undofile(bufname("%")))|call delete(undofile(bufname("%")))
+     q!
+     let &ei= eikeep
+    endif
   endif
 
   " restore event handling
@@ -183,8 +185,10 @@ fun! s:LargeFileLeave()
   endif
 
   " restore undo level
-  if exists("b:LF_ulkeep")
-   let &ul= b:LF_ulkeep
+  if v:version < 704 || (v:version == 704 && !has("patch073"))
+    if exists("b:LF_ulkeep")
+     let &ul= b:LF_ulkeep
+    endif
   endif
 "  call Dret("s:LargeFileLeave")
 endfun
